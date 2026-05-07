@@ -105,7 +105,7 @@ static void merge_vad_intervals(std::vector<whisper_wasm_vad_interval> & interva
     merged.reserve(intervals.size());
 
     for (const auto & interval : intervals) {
-        if (!merged.empty() && interval.start >= merged.back().end && interval.start - merged.back().end < merge_gap_cs) {
+        if (!merged.empty() && interval.start >= merged.back().end && interval.start - merged.back().end <= merge_gap_cs) {
             merged.back().end = std::max(merged.back().end, interval.end);
             continue;
         }

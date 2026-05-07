@@ -20,7 +20,7 @@ Deno.test({
         assertIncludes(html, 'function ensureVadModel()');
         assertIncludes(html, "fetchModelAsset(kVadModelAssetUrl, 'VAD 모델')");
         assertIncludes(html, 'await ensureVadModel();');
-        assertIncludes(html, '<label for="vad-merge-gap">다음 간격의 문장은 합치기(초)</label>');
+        assertIncludes(html, '<label for="vad-merge-gap">다음 간격 이하의 문장은 합치기(초)</label>');
         assertIncludes(html, '<input type="number" id="vad-merge-gap" name="vad-merge-gap" min="0" max="5" step="0.1" value="0.5">');
         assertIncludes(html, 'const vadMergeGapEl = document.getElementById(\'vad-merge-gap\');');
         assertIncludes(html, 'vadMergeGapEl.disabled = locked;');
@@ -106,7 +106,7 @@ Deno.test({
 });
 
 Deno.test({
-    name: 'WASM 바인딩은 설정된 간격 미만의 VAD 구간을 병합한다',
+    name: 'WASM 바인딩은 설정된 간격 이하의 VAD 구간을 병합한다',
     permissions: { read: ['app/emscripten.cpp'] },
     fn: async () => {
         const source = await Deno.readTextFile('app/emscripten.cpp');
@@ -114,7 +114,7 @@ Deno.test({
         assertIncludes(source, 'static const int64_t WHISPER_WASM_DEFAULT_VAD_MERGE_GAP_CS = 50;');
         assertIncludes(source, 'static void merge_vad_intervals(std::vector<whisper_wasm_vad_interval> & intervals, int64_t merge_gap_cs)');
         assertIncludes(source, 'const int64_t vad_merge_gap_cs = vad_merge_gap_ms >= 0 ? vad_merge_gap_ms/10 : WHISPER_WASM_DEFAULT_VAD_MERGE_GAP_CS;');
-        assertIncludes(source, 'interval.start - merged.back().end < merge_gap_cs');
+        assertIncludes(source, 'interval.start - merged.back().end <= merge_gap_cs');
         assertIncludes(source, 'merged.back().end = std::max(merged.back().end, interval.end);');
         assertIncludes(source, 'interval.start < merged.back().end');
     },
