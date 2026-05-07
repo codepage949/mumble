@@ -22,8 +22,8 @@ Deno.test({
 
         assertIncludes(html, "const kModelAssetUrl = '@WHISPER_WASM_MODEL_URL@';");
         assertIncludes(html, "const kVadModelAssetUrl = '@WHISPER_WASM_VAD_MODEL_URL@';");
-        assertIncludes(html, "fetchModelAsset(kModelAssetUrl, 'model ' + kModelName)");
-        assertIncludes(html, "fetchModelAsset(kVadModelAssetUrl, 'VAD model')");
+        assertIncludes(html, "fetchModelAsset(kModelAssetUrl, '모델 ' + kModelName)");
+        assertIncludes(html, "fetchModelAsset(kVadModelAssetUrl, 'VAD 모델')");
         assertIncludes(html, 'cache.match(assetUrl)');
         assertIncludes(html, 'cache.put(assetUrl, response.clone())');
         assertNotIncludes(html, "const kModelAsset = 'whisper.bin';");
@@ -38,7 +38,33 @@ Deno.test({
         const html = await read('app/index-tmpl.html');
 
         assertIncludes(html, '<title>mumble</title>');
+        assertIncludes(html, '<h1>mumble</h1>');
         assertNotIncludes(html, '<title>whisper.cpp : WASM dropzone</title>');
+        assertNotIncludes(html, '<h1>whisper.cpp transcription</h1>');
+    },
+});
+
+Deno.test({
+    name: '웹페이지는 짧은 출처 문구와 분리된 상태 패널을 가진다',
+    permissions: { read: ['app/index-tmpl.html'] },
+    fn: async () => {
+        const html = await read('app/index-tmpl.html');
+
+        assertIncludes(html, '<div class="credit">Powered by whisper.cpp</div>');
+        assertIncludes(html, '<strong>음성 파일을 여기에 놓으세요</strong>');
+        assertIncludes(html, '<div class="status-panel" aria-live="polite">');
+        assertIncludes(html, '<div class="status-label">상태</div>');
+        assertIncludes(html, '<div id="status">준비됨</div>');
+        assertIncludes(html, '<div id="progress"></div>');
+        assertIncludes(html, '<h2 class="result-title">문장들</h2>');
+        assertIncludes(html, '--surface: #ffffff;');
+        assertIncludes(html, '--accent: #111111;');
+        assertIncludes(html, 'min-height: 44px;');
+        assertIncludes(html, 'background: var(--surface-muted);');
+        assertIncludes(html, 'outline: 2px solid var(--focus);');
+        assertNotIncludes(html, 'Model tiny-q8_0 is loaded from the configured model URL.');
+        assertNotIncludes(html, 'Split speech into repeatable segments.');
+        assertNotIncludes(html, 'Drop audio here');
     },
 });
 
@@ -86,6 +112,25 @@ Deno.test({
         assertIncludes(script, 'BUILD_DIR="${ROOT_DIR}/${BUILD_DIR}"');
         assertIncludes(script, 'rm -rf "${BUILD_DIR}/bin/whisper.wasm"');
         assertIncludes(script, 'cp "${BUILD_DIR}/bin/libmain.js" "${BUILD_DIR}/bin/whisper.wasm/main.js"');
+    },
+});
+
+Deno.test({
+    name: 'Deno 개발 태스크는 app 변경을 감시해 WASM 앱을 다시 빌드하고 서버를 띄운다',
+    permissions: { read: ['deno.json', 'scripts/dev.ts'] },
+    fn: async () => {
+        const config = await read('deno.json');
+        const script = await read('scripts/dev.ts');
+
+        assertIncludes(config, '"dev": "deno run --allow-run --allow-env --allow-read scripts/dev.ts"');
+        assertIncludes(script, 'new Deno.Command("./scripts/build-whisper-wasm-static.sh"');
+        assertIncludes(script, 'stdout: "inherit"');
+        assertIncludes(script, 'stderr: "inherit"');
+        assertIncludes(script, 'cwd: "build-em/bin/whisper.wasm"');
+        assertIncludes(script, 'args: ["run", "--allow-net", "--allow-read", "server.ts"]');
+        assertIncludes(script, 'current.kill("SIGTERM");');
+        assertIncludes(script, 'const watcher = Deno.watchFs("app");');
+        assertIncludes(script, 'app/ changed. Rebuilding...');
     },
 });
 

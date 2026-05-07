@@ -70,10 +70,22 @@ deno task build
 
 외부 모델 URL은 브라우저에서 CORS로 가져올 수 있어야 합니다.
 
+## 로컬 개발
+
+개발 중에는 `dev` 태스크를 사용합니다.
+
+```bash
+deno task dev
+```
+
+이 태스크는 먼저 WASM 앱을 빌드한 뒤 `build-em/bin/whisper.wasm` 산출물 서버를
+실행합니다. `app/` 아래 파일이 바뀌면 서버를 멈추고 다시 빌드한 뒤 서버를
+재시작합니다.
+
 ## 로컬 실행
 
 pthread가 활성화된 WASM 빌드는 브라우저에서 COOP/COEP 헤더가 필요합니다. 생성된
-Deno 서버로 실행합니다.
+Deno 서버로 빌드 산출물을 실행합니다.
 
 ```bash
 deno task start

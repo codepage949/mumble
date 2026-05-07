@@ -18,9 +18,9 @@ Deno.test({
         }
         assertIncludes(html, "const kVadModelAssetUrl = '@WHISPER_WASM_VAD_MODEL_URL@';");
         assertIncludes(html, 'function ensureVadModel()');
-        assertIncludes(html, "fetchModelAsset(kVadModelAssetUrl, 'VAD model')");
+        assertIncludes(html, "fetchModelAsset(kVadModelAssetUrl, 'VAD 모델')");
         assertIncludes(html, 'await ensureVadModel();');
-        assertIncludes(html, '<label for="vad-merge-gap">Combine pauses under (s)</label>');
+        assertIncludes(html, '<label for="vad-merge-gap">다음 간격의 문장은 합치기(초)</label>');
         assertIncludes(html, '<input type="number" id="vad-merge-gap" name="vad-merge-gap" min="0" max="5" step="0.1" value="0.5">');
         assertIncludes(html, 'const vadMergeGapEl = document.getElementById(\'vad-merge-gap\');');
         assertIncludes(html, 'vadMergeGapEl.disabled = locked;');
@@ -44,6 +44,7 @@ Deno.test({
         assertIncludes(html, 'js: VAD only: no speech segment detected');
         assertIncludes(html, 'js: VAD only: segment #');
         assertIncludes(html, 'grid-template-columns: max-content 1fr;');
+        assertIncludes(html, 'align-items: center;');
         assertIncludes(html, 'white-space: nowrap;');
     },
 });

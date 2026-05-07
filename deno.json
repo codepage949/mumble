@@ -6,6 +6,7 @@
     "check:cmake": "cmake -S . -B build-check -G Ninja",
     "check": "deno task test && deno task check:scripts && deno task check:cmake",
     "build": "./scripts/build-whisper-wasm-static.sh",
+    "dev": "deno run --allow-run --allow-env --allow-read scripts/dev.ts",
     "start": "cd build-em/bin/whisper.wasm && deno run --allow-net --allow-read server.ts"
   },
   "fmt": {
