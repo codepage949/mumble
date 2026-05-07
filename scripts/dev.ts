@@ -5,7 +5,8 @@ let queued = false;
 let shuttingDown = false;
 
 async function runBuild(): Promise<boolean> {
-  const build = new Deno.Command("./scripts/build-whisper-wasm-static.sh", {
+  const build = new Deno.Command("bash", {
+    args: ["./scripts/build-whisper-wasm-static.sh"],
     stdout: "inherit",
     stderr: "inherit",
   });

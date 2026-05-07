@@ -65,6 +65,12 @@
                 min-width: 0;
             }
 
+            .right-pane {
+                display: grid;
+                grid-template-rows: auto minmax(0, 1fr);
+                min-height: 360px;
+            }
+
             #dropzone {
                 display: grid;
                 place-items: center;
@@ -230,15 +236,22 @@
 
             #segments {
                 display: grid;
+                align-content: start;
                 gap: 8px;
+                min-height: 300px;
+                max-height: min(640px, calc(100vh - 110px));
+                overflow-y: auto;
+                padding-right: 2px;
+                scrollbar-gutter: stable;
             }
 
             .segment {
                 display: grid;
-                grid-template-columns: max-content 1fr;
-                align-items: center;
+                grid-template-columns: 118px minmax(0, 1fr);
+                align-items: start;
                 gap: 12px;
                 width: 100%;
+                min-height: 48px;
                 padding: 12px;
                 border: 1px solid var(--border);
                 border-radius: 6px;
@@ -264,6 +277,7 @@
 
             .text {
                 line-height: 1.4;
+                overflow-wrap: anywhere;
             }
 
             #dropzone:focus-visible,
@@ -282,6 +296,10 @@
 
                 .workspace {
                     grid-template-columns: 1fr;
+                }
+
+                #segments {
+                    max-height: none;
                 }
             }
 

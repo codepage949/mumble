@@ -43,8 +43,17 @@ Deno.test({
         assertIncludes(html, 'audioEl.currentTime = Math.max(0, segmentTimeSeconds(segment.t0) - kSegmentPlaybackLeadSeconds);');
         assertIncludes(html, 'js: VAD only: no speech segment detected');
         assertIncludes(html, 'js: VAD only: segment #');
-        assertIncludes(html, 'grid-template-columns: max-content 1fr;');
-        assertIncludes(html, 'align-items: center;');
+        assertIncludes(html, 'grid-template-rows: auto minmax(0, 1fr);');
+        assertIncludes(html, 'min-height: 360px;');
+        assertIncludes(html, 'align-content: start;');
+        assertIncludes(html, 'min-height: 300px;');
+        assertIncludes(html, 'max-height: min(640px, calc(100vh - 110px));');
+        assertIncludes(html, 'overflow-y: auto;');
+        assertIncludes(html, 'scrollbar-gutter: stable;');
+        assertIncludes(html, 'grid-template-columns: 118px minmax(0, 1fr);');
+        assertIncludes(html, 'align-items: start;');
+        assertIncludes(html, 'min-height: 48px;');
+        assertIncludes(html, 'overflow-wrap: anywhere;');
         assertIncludes(html, 'white-space: nowrap;');
     },
 });
