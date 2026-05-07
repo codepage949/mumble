@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="en-us">
+    <head>
+        <title>mumble</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            :root {
+                color-scheme: light;
+                font-family: Arial, Helvetica, sans-serif;
+            }
+
+            body {
+                margin: 0;
+                background: #f4f6f8;
+                color: #1d252d;
+            }
+
+            main {
+                max-width: 1180px;
+                margin: 0 auto;
+                padding: 32px 20px;
+            }
+
+            h1 {
+                margin: 0 0 16px;
+                font-size: 28px;
+                font-weight: 700;
+            }
+
+            .workspace {
+                display: grid;
+                grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+                gap: 24px;
+                align-items: start;
+            }
+
+            .left-pane,
+            .right-pane {
+                min-width: 0;
+            }
+
+            #dropzone {
+                display: grid;
+                place-items: center;
+                min-height: 220px;
+                padding: 24px;
+                border: 2px dashed #6d7f8f;
+                border-radius: 8px;
+                background: #ffffff;
+                cursor: pointer;
+                text-align: center;
+                transition: border-color 120ms ease, background 120ms ease;
+            }
+
+            #dropzone.dragover {
+                border-color: #1f6feb;
+                background: #eef5ff;
+            }
+
+            #dropzone strong {
+                display: block;
+                margin-bottom: 8px;
+                font-size: 20px;
+            }
+
+            #dropzone span {
+                color: #5c6975;
+            }
+
+            .loading-overlay {
+                position: fixed;
+                inset: 0;
+                z-index: 20;
+                display: grid;
+                place-items: center;
+                padding: 24px;
+                background: rgba(244, 246, 248, 0.94);
+            }
+
+            .loading-overlay.hidden {
+                display: none;
+            }
+
+            .loading-panel {
+                width: min(420px, 100%);
+                padding: 24px;
+                border: 1px solid #d8dee4;
+                border-radius: 8px;
+                background: #ffffff;
+                box-shadow: 0 16px 40px rgba(29, 37, 45, 0.14);
+            }
+
+            .loading-title {
+                margin: 0 0 12px;
+                font-size: 18px;
+                font-weight: 700;
+            }
+
+            .loading-track {
+                height: 10px;
+                overflow: hidden;
+                border-radius: 999px;
+                background: #d8dee4;
+            }
+
+            .loading-bar {
+                width: 0%;
+                height: 100%;
+                border-radius: inherit;
+                background: #1f6feb;
+                transition: width 120ms ease;
+            }
+
+            .loading-meta {
+                display: flex;
+                justify-content: space-between;
+                gap: 16px;
+                margin-top: 10px;
+                color: #5c6975;
+                font-size: 14px;
+                font-variant-numeric: tabular-nums;
+            }
+
+            #status {
+                min-height: 24px;
+                margin: 18px 0;
+                font-weight: 600;
+            }
+
+            .controls {
+                display: grid;
+                grid-template-columns: max-content minmax(0, 1fr);
+                align-items: center;
+                gap: 10px 12px;
+                margin: 16px 0 0;
+            }
+
+            .controls label {
+                font-weight: 600;
+                white-space: nowrap;
+            }
+
+            .controls select,
+            .controls input {
+                min-width: 0;
+                width: 100%;
+                padding: 7px 10px;
+                border: 1px solid #c9d1d9;
+                border-radius: 6px;
+                background: #ffffff;
+                color: #1d252d;
+                font: inherit;
+            }
+
+            .controls input {
+                max-width: 120px;
+            }
+
+            #progress {
+                color: #34495e;
+                font-variant-numeric: tabular-nums;
+            }
+
+            audio {
+                width: 100%;
+                margin: 8px 0 20px;
+            }
+
+            .result-title {
+                margin: 0 0 12px;
+                font-size: 18px;
+            }
+
+            #segments {
+                display: grid;
+                gap: 8px;
+            }
+
+            .segment {
+                display: grid;
+                grid-template-columns: max-content 1fr;
+                gap: 12px;
+                width: 100%;
+                padding: 12px;
+                border: 1px solid #d8dee4;
+                border-radius: 6px;
+                background: #ffffff;
+                color: inherit;
+                cursor: pointer;
+                text-align: left;
+            }
+
+            .segment:hover,
+            .segment.active {
+                border-color: #1f6feb;
+                background: #f3f8ff;
+            }
+
+            .time {
+                color: #5c6975;
+                font-variant-numeric: tabular-nums;
+                white-space: nowrap;
+            }
+
+            @media (max-width: 780px) {
+                .workspace {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+        </style>
+        <link rel="icon" href="data:,">
+    </head>
+    <body>
+        <div id="loading-overlay" class="loading-overlay" aria-live="polite" aria-busy="true">
+            <div class="loading-panel">
+                <div id="loading-title" class="loading-title">Loading models</div>
+                <div class="loading-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Model loading progress">
+                    <div id="loading-bar" class="loading-bar"></div>
+                </div>
+                <div class="loading-meta">
+                    <span id="loading-detail">Preparing WASM runtime</span>
+                    <span id="loading-percent">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <main>
+            <h1>whisper.cpp transcription</h1>
+
+            <div class="workspace">
+                <div class="left-pane">
+            <div id="dropzone" role="button" tabindex="0">
+                <div>
+                    <strong>Drop one audio file here</strong>
+                    <span>Model tiny-q8_0 is loaded from the configured model URL.</span>
+                </div>
+            </div>
+            <input type="file" id="file-input" accept="audio/*" hidden>
+
+            <div class="controls">
+                <label for="language">Language</label>
+                <select id="language" name="language">
+                    <option value="auto">Auto detect</option>
+                    <option value="en">English</option>
+                    <option value="ar">Arabic</option>
+                    <option value="hy">Armenian</option>
+                    <option value="az">Azerbaijani</option>
+                    <option value="eu">Basque</option>
+                    <option value="be">Belarusian</option>
+                    <option value="bn">Bengali</option>
+                    <option value="bg">Bulgarian</option>
+                    <option value="ca">Catalan</option>
+                    <option value="zh">Chinese</option>
+                    <option value="hr">Croatian</option>
+                    <option value="cs">Czech</option>
+                    <option value="da">Danish</option>
+                    <option value="nl">Dutch</option>
+                    <option value="et">Estonian</option>
+                    <option value="tl">Filipino</option>
+                    <option value="fi">Finnish</option>
+                    <option value="fr">French</option>
+                    <option value="gl">Galician</option>
+                    <option value="ka">Georgian</option>
+                    <option value="de">German</option>
+                    <option value="el">Greek</option>
+                    <option value="gu">Gujarati</option>
+                    <option value="he">Hebrew</option>
+                    <option value="hi">Hindi</option>
+                    <option value="hu">Hungarian</option>
+                    <option value="is">Icelandic</option>
+                    <option value="id">Indonesian</option>
+                    <option value="ga">Irish</option>
+                    <option value="it">Italian</option>
+                    <option value="ja">Japanese</option>
+                    <option value="kn">Kannada</option>
+                    <option value="ko">Korean</option>
+                    <option value="la">Latin</option>
+                    <option value="lv">Latvian</option>
+                    <option value="lt">Lithuanian</option>
+                    <option value="mk">Macedonian</option>
+                    <option value="ms">Malay</option>
+                    <option value="mt">Maltese</option>
+                    <option value="no">Norwegian</option>
+                    <option value="fa">Persian</option>
+                    <option value="pl">Polish</option>
+                    <option value="pt">Portuguese</option>
+                    <option value="ro">Romanian</option>
+                    <option value="ru">Russian</option>
+                    <option value="sr">Serbian</option>
+                    <option value="sk">Slovak</option>
+                    <option value="sl">Slovenian</option>
+                    <option value="es">Spanish</option>
+                    <option value="sw">Swahili</option>
+                    <option value="sv">Swedish</option>
+                    <option value="ta">Tamil</option>
+                    <option value="te">Telugu</option>
+                    <option value="th">Thai</option>
+                    <option value="tr">Turkish</option>
+                    <option value="uk">Ukrainian</option>
+                    <option value="ur">Urdu</option>
+                    <option value="vi">Vietnamese</option>
+                    <option value="cy">Welsh</option>
+                    <option value="yi">Yiddish</option>
+                </select>
+                <label for="vad-merge-gap">Combine pauses under (s)</label>
+                <input type="number" id="vad-merge-gap" name="vad-merge-gap" min="0" max="5" step="0.1" value="0.5">
+            </div>
+
+            <div id="status">Ready</div>
+            <div id="progress"></div>
+
+            <audio controls id="audio" hidden></audio>
+                </div>
+
+                <div class="right-pane">
+                    <h2 class="result-title">Transcribe result</h2>
+            <div id="segments"></div>
+                </div>
+            </div>
+        </main>
+
+        <script type="text/javascript" src="audio-utils.js"></script>
+        <script type="text/javascript">
+            const kModelName = 'tiny-q8_0';
+            const kModelDst = 'whisper.bin';
+            const kModelAssetUrl = '@WHISPER_WASM_MODEL_URL@';
+            const kVadModelDst = 'vad.bin';
+            const kVadModelAssetUrl = '@WHISPER_WASM_VAD_MODEL_URL@';
+            const kAssetCache = 'whisper-wasm-assets-v2';
+            const kModelSizeBytes = 43537433;
+            const kVadModelSizeBytes = 885098;
+            const kSampleRate = 16000;
+            const kMaxAudio_s = 30*60;
+            const kSegmentPlaybackLeadSeconds = 0.1;
+
+            let context = null;
+            let audio = null;
+            let audioUrl = null;
+            let instance = null;
+            let stopAt = null;
+            let activeSegment = null;
+            let transcriptionRunId = 0;
+            let modelReady = false;
+            let vadModelReady = false;
+            let modelLoadPromise = null;
+            let vadModelLoadPromise = null;
+            let preloadStarted = false;
+            let inputsLocked = true;
+            const assetProgress = {
+                [kModelAssetUrl]: { loaded: 0, total: kModelSizeBytes },
+                [kVadModelAssetUrl]: { loaded: 0, total: kVadModelSizeBytes },
+            };
+
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            const dropzone = document.getElementById('dropzone');
+            const fileInput = document.getElementById('file-input');
+            const languageEl = document.getElementById('language');
+            const vadMergeGapEl = document.getElementById('vad-merge-gap');
+            const statusEl = document.getElementById('status');
+            const progressEl = document.getElementById('progress');
+            const audioEl = document.getElementById('audio');
+            const segmentsEl = document.getElementById('segments');
+            const loadingOverlayEl = document.getElementById('loading-overlay');
+            const loadingTitleEl = document.getElementById('loading-title');
+            const loadingTrackEl = document.querySelector('.loading-track');
+            const loadingBarEl = document.getElementById('loading-bar');
+            const loadingDetailEl = document.getElementById('loading-detail');
+            const loadingPercentEl = document.getElementById('loading-percent');
+
+            function printTextarea() {
+                let text = arguments.length > 1 ? Array.prototype.slice.call(arguments).join(' ') : arguments[0];
+                text = text == null ? '' : String(text);
+                console.log(text);
+            }
+
+            if (navigator.serviceWorker) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    registrations.forEach(function(registration) {
+                        registration.unregister();
+                    });
+                }).catch(function(error) {
+                    printTextarea('js: service worker cleanup failed: ' + error.message);
+                });
+            }
+
+            var Module = {
+                print: printTextarea,
+                printErr: printTextarea,
+                onRuntimeInitialized: function() {
+                    preloadModels();
+                },
+                setStatus: function(text) {
+                    setStatus(text);
+                    printTextarea('js: ' + text);
+                },
+                monitorRunDependencies: function(left) {
+                }
+            };
+
+            function setStatus(text) {
+                statusEl.textContent = text;
+            }
+
+            function setProgress(text) {
+                progressEl.textContent = text;
+            }
+
+            function setInputsLocked(locked) {
+                inputsLocked = locked;
+                fileInput.disabled = locked;
+                languageEl.disabled = locked;
+                vadMergeGapEl.disabled = locked;
+                dropzone.setAttribute('aria-disabled', locked ? 'true' : 'false');
+            }
+
+            function formatBytes(bytes) {
+                if (bytes >= 1024*1024) {
+                    return (bytes/(1024*1024)).toFixed(1) + ' MB';
+                }
+
+                if (bytes >= 1024) {
+                    return (bytes/1024).toFixed(0) + ' KB';
+                }
+
+                return bytes + ' B';
+            }
+
+            function updateLoadingProgress(detail) {
+                const entries = Object.values(assetProgress);
+                const loaded = entries.reduce(function(total, item) { return total + item.loaded; }, 0);
+                const total = entries.reduce(function(total, item) { return total + item.total; }, 0);
+                const percent = total > 0 ? Math.min(100, Math.round(loaded*100/total)) : 0;
+
+                loadingBarEl.style.width = percent + '%';
+                loadingTrackEl.setAttribute('aria-valuenow', String(percent));
+                loadingPercentEl.textContent = percent + '%';
+                loadingDetailEl.textContent = detail || (formatBytes(loaded) + ' / ' + formatBytes(total));
+            }
+
+            function showLoadingOverlay(title, detail) {
+                loadingTitleEl.textContent = title;
+                loadingOverlayEl.classList.remove('hidden');
+                loadingOverlayEl.setAttribute('aria-busy', 'true');
+                setInputsLocked(true);
+                updateLoadingProgress(detail);
+            }
+
+            function hideLoadingOverlay() {
+                loadingBarEl.style.width = '100%';
+                loadingTrackEl.setAttribute('aria-valuenow', '100');
+                loadingPercentEl.textContent = '100%';
+                loadingOverlayEl.classList.add('hidden');
+                loadingOverlayEl.setAttribute('aria-busy', 'false');
+                setInputsLocked(false);
+            }
+
+            function storeFS(fname, buf) {
+                try {
+                    Module.FS_unlink(fname);
+                } catch (e) {
+                }
+
+                Module.FS_createDataFile('/', fname, buf, true, true);
+                printTextarea('storeFS: stored file: ' + fname + ' size: ' + buf.length);
+            }
+
+            async function openAssetCache() {
+                if (!('caches' in window)) {
+                    return null;
+                }
+
+                try {
+                    return await caches.open(kAssetCache);
+                } catch (error) {
+                    printTextarea('js: model cache unavailable: ' + error.message);
+                    return null;
+                }
+            }
+
+            async function readResponseBytes(response, assetUrl, label) {
+                const progress = assetProgress[assetUrl];
+                const contentLength = Number(response.headers.get('content-length') || 0);
+                if (contentLength > 0) {
+                    progress.total = contentLength;
+                }
+
+                if (!response.body || !response.body.getReader) {
+                    const data = new Uint8Array(await response.arrayBuffer());
+                    progress.loaded = data.length;
+                    progress.total = Math.max(progress.total, data.length);
+                    updateLoadingProgress('Loaded ' + label);
+                    return data;
+                }
+
+                const reader = response.body.getReader();
+                const chunks = [];
+                let received = 0;
+
+                while (true) {
+                    const result = await reader.read();
+                    if (result.done) {
+                        break;
+                    }
+
+                    chunks.push(result.value);
+                    received += result.value.length;
+                    progress.loaded = received;
+                    updateLoadingProgress('Loading ' + label + ' ' + formatBytes(received) + ' / ' + formatBytes(progress.total));
+                }
+
+                const data = new Uint8Array(received);
+                let offset = 0;
+                for (const chunk of chunks) {
+                    data.set(chunk, offset);
+                    offset += chunk.length;
+                }
+
+                progress.loaded = data.length;
+                progress.total = Math.max(progress.total, data.length);
+                updateLoadingProgress('Loaded ' + label);
+                return data;
+            }
+
+            async function fetchModelAsset(assetUrl, label) {
+                const cache = await openAssetCache();
+                if (cache) {
+                    const cached = await cache.match(assetUrl);
+                    if (cached) {
+                        printTextarea('js: loading ' + label + ' from browser cache');
+                        return await readResponseBytes(cached, assetUrl, label);
+                    }
+                }
+
+                printTextarea('js: downloading ' + label + ' from ' + assetUrl);
+                const response = await fetch(assetUrl, { cache: 'force-cache' });
+                if (!response.ok) {
+                    throw new Error('failed to load ' + label + ': ' + response.status);
+                }
+
+                if (cache) {
+                    cache.put(assetUrl, response.clone()).catch(function(error) {
+                        printTextarea('js: failed to cache ' + label + ': ' + error.message);
+                    });
+                }
+
+                setProgress('');
+                const data = await readResponseBytes(response, assetUrl, label);
+                printTextarea('js: loaded ' + label + ', size: ' + data.length);
+                return data;
+            }
+
+            function ensureModel() {
+                if (modelReady) {
+                    return Promise.resolve();
+                }
+
+                if (!modelLoadPromise) {
+                    modelLoadPromise = (async function() {
+                        setStatus('Loading model ' + kModelName);
+                        setProgress('');
+                        showLoadingOverlay('Loading models', 'Loading model ' + kModelName);
+                        const data = await fetchModelAsset(kModelAssetUrl, 'model ' + kModelName);
+                        storeFS(kModelDst, data);
+                        modelReady = true;
+                    })().catch(function(error) {
+                        modelLoadPromise = null;
+                        throw error;
+                    });
+                }
+
+                return modelLoadPromise;
+            }
+
+            function ensureVadModel() {
+                if (vadModelReady) {
+                    return Promise.resolve();
+                }
+
+                if (!vadModelLoadPromise) {
+                    vadModelLoadPromise = (async function() {
+                        setStatus('Loading VAD model');
+                        setProgress('');
+                        showLoadingOverlay('Loading models', 'Loading VAD model');
+                        const data = await fetchModelAsset(kVadModelAssetUrl, 'VAD model');
+                        storeFS(kVadModelDst, data);
+                        vadModelReady = true;
+                    })().catch(function(error) {
+                        vadModelLoadPromise = null;
+                        throw error;
+                    });
+                }
+
+                return vadModelLoadPromise;
+            }
+
+            async function preloadModels() {
+                if (preloadStarted) {
+                    return;
+                }
+
+                preloadStarted = true;
+                try {
+                    await ensureModel();
+                    await ensureVadModel();
+                    hideLoadingOverlay();
+                    setStatus('Ready');
+                } catch (error) {
+                    preloadStarted = false;
+                    loadingTitleEl.textContent = 'Model loading failed';
+                    loadingDetailEl.textContent = error.message;
+                    loadingOverlayEl.setAttribute('aria-busy', 'false');
+                    setInputsLocked(false);
+                    setStatus('Error');
+                    printTextarea('js: preload failed: ' + error.message);
+                }
+            }
+
+            async function loadAudio(file) {
+                if (!context) {
+                    context = new AudioContext();
+                }
+
+                if (audioUrl) {
+                    URL.revokeObjectURL(audioUrl);
+                }
+                audioUrl = URL.createObjectURL(file);
+                audioEl.src = audioUrl;
+                audioEl.hidden = false;
+
+                setStatus('Loading audio');
+                const fileBuffer = await file.arrayBuffer();
+                let decoded = null;
+                let decoder = 'decodeAudioData';
+                const mp3 = Module.decode_mp3 ? Module.decode_mp3(new Uint8Array(fileBuffer)) : null;
+                if (mp3 && mp3.pcm && mp3.length > 0) {
+                    decoded = WhisperWasmAudio.makeAudioBufferFromInterleaved(mp3.pcm, mp3.numberOfChannels, mp3.sampleRate);
+                    decoder = 'mp3-wasm';
+                }
+                if (!decoded) {
+                    decoded = await context.decodeAudioData(fileBuffer.slice(0));
+                }
+                const normalized = WhisperWasmAudio.normalizeAudioBuffer(decoded, kSampleRate);
+                audio = normalized.pcm;
+                if (audio.length > kMaxAudio_s*kSampleRate) {
+                    audio = audio.slice(0, kMaxAudio_s*kSampleRate);
+                    printTextarea('js: truncated audio to first ' + kMaxAudio_s + ' seconds');
+                }
+
+                printTextarea('js: audio loaded: ' + file.name + ', samples: ' + audio.length);
+                printTextarea('js: audio normalized: decoder=' + decoder +
+                    ', source_rate=' + normalized.sourceSampleRate +
+                    ', source_samples=' + normalized.sourceLength +
+                    ', target_rate=' + normalized.targetSampleRate +
+                    ', target_samples=' + normalized.targetLength +
+                    ', checksum=' + normalized.checksum);
+            }
+
+            function formatTime(t) {
+                const seconds = segmentTimeSeconds(t);
+                const mm = Math.floor(seconds/60).toString().padStart(2, '0');
+                const ss = (seconds%60).toFixed(2).padStart(5, '0');
+                return mm + ':' + ss;
+            }
+
+            function segmentTimeSeconds(t) {
+                return Math.max(0, Number(t)*0.01);
+            }
+
+            function formatSeconds(t) {
+                return segmentTimeSeconds(t).toFixed(2) + 's';
+            }
+
+            function getVadMergeGapMs() {
+                const seconds = Number(vadMergeGapEl.value);
+                if (!Number.isFinite(seconds) || seconds < 0) {
+                    return 500;
+                }
+
+                return Math.round(seconds*1000);
+            }
+
+            function logVadSegments(logs) {
+                if (!logs || !logs.length) {
+                    printTextarea('js: VAD only: no speech segment detected');
+                    return;
+                }
+
+                for (let i = 0; i < logs.length; i++) {
+                    const log = logs[i];
+                    printTextarea('js: VAD only: segment #' + log.index +
+                        ' speech ' + formatSeconds(log.start) + '-' + formatSeconds(log.end));
+                }
+            }
+
+            function playSegment(segment, button) {
+                if (activeSegment) {
+                    activeSegment.classList.remove('active');
+                }
+
+                activeSegment = button;
+                activeSegment.classList.add('active');
+                stopAt = segmentTimeSeconds(segment.t1);
+                audioEl.currentTime = Math.max(0, segmentTimeSeconds(segment.t0) - kSegmentPlaybackLeadSeconds);
+                audioEl.play();
+            }
+
+            function renderSegments(segments) {
+                segmentsEl.innerHTML = '';
+
+                if (!segments.length) {
+                    segmentsEl.textContent = 'No transcription segments returned.';
+                    return;
+                }
+
+                for (let i = 0; i < segments.length; i++) {
+                    const segment = segments[i];
+                    const button = document.createElement('button');
+                    const time = document.createElement('span');
+                    const text = document.createElement('span');
+                    button.type = 'button';
+                    button.className = 'segment';
+                    button.dataset.index = String(i);
+                    time.className = 'time';
+                    text.className = 'text';
+                    time.textContent = formatTime(segment.t0) + ' - ' + formatTime(segment.t1);
+                    text.textContent = segment.text.trim();
+                    button.appendChild(time);
+                    button.appendChild(text);
+                    button.addEventListener('click', function() {
+                        playSegment(segment, button);
+                    });
+                    segmentsEl.appendChild(button);
+                }
+            }
+
+            function updateSegmentText(index, text) {
+                const textEl = segmentsEl.querySelector('.segment[data-index="' + index + '"] .text');
+                if (textEl) {
+                    textEl.textContent = text.trim();
+                }
+            }
+
+            function waitForResult() {
+                return new Promise(function(resolve, reject) {
+                    const poll = function() {
+                        const result = Module.get_result();
+                        if (!result || !result.ready) {
+                            setTimeout(poll, 250);
+                            return;
+                        }
+
+                        if (result.error) {
+                            reject(new Error('transcription failed: ' + result.error));
+                            return;
+                        }
+
+                        resolve(result);
+                    };
+
+                    poll();
+                });
+            }
+
+            function waitForWorkerIdle() {
+                return new Promise(function(resolve) {
+                    const poll = function() {
+                        if (!Module.get_result) {
+                            resolve();
+                            return;
+                        }
+
+                        const result = Module.get_result();
+                        if (!result || !result.ready) {
+                            setTimeout(poll, 100);
+                            return;
+                        }
+
+                        resolve(result);
+                    };
+
+                    poll();
+                });
+            }
+
+            async function cancelActiveTranscription() {
+                if (Module.cancel) {
+                    Module.cancel();
+                    await waitForWorkerIdle();
+                }
+            }
+
+            async function transcribeVadSegmentsSequentially(segments, runId, nthreads) {
+                if (!Module.transcribe_segment || !segments.length) {
+                    return;
+                }
+
+                let transcriptHint = '';
+                for (let i = 0; i < segments.length; i++) {
+                    if (runId !== transcriptionRunId) {
+                        return;
+                    }
+
+                    const segment = segments[i];
+                    setStatus('Transcribing segment ' + (i + 1) + ' / ' + segments.length);
+                    updateSegmentText(i, '...');
+                    const started = Module.transcribe_segment(instance, audio, languageEl.value, nthreads, false, segment.t0, segment.t1, transcriptHint);
+                    if (!started || started.error) {
+                        if (started && started.error == -3) {
+                            throw new Error('transcription is already running');
+                        }
+                        throw new Error('segment transcription failed: ' + (started ? started.error : 'unknown'));
+                    }
+
+                    const result = await waitForResult();
+                    if (runId !== transcriptionRunId) {
+                        return;
+                    }
+
+                    const transcribed = result.segments && result.segments.length ? result.segments[0].text : '';
+                    segments[i].text = transcribed;
+                    updateSegmentText(i, transcribed);
+                    if (transcribed.trim()) {
+                        transcriptHint = (transcriptHint + ' ' + transcribed.trim()).trim();
+                        if (transcriptHint.length > 500) {
+                            transcriptHint = transcriptHint.slice(-500);
+                        }
+                    }
+                }
+
+                if (runId === transcriptionRunId) {
+                    setStatus('Done');
+                }
+            }
+
+            async function transcribe() {
+                if (!Module.init || !Module.full_default || !Module.get_result || !Module.transcribe_segment || !Module.cancel) {
+                    throw new Error('WASM runtime is not ready yet');
+                }
+
+                await ensureModel();
+                await ensureVadModel();
+
+                if (!instance) {
+                    setStatus('Initializing model');
+                    instance = Module.init(kModelDst);
+                }
+
+                if (!instance) {
+                    throw new Error('failed to initialize whisper');
+                }
+
+                setStatus('Transcribing');
+                const nthreads = Math.min(8, navigator.hardwareConcurrency || 4);
+                const started = Module.full_default(instance, audio, languageEl.value, nthreads, false, true, getVadMergeGapMs());
+                if (!started || started.error) {
+                    if (started && started.error == -3) {
+                        throw new Error('transcription is already running');
+                    }
+                    throw new Error('transcription failed: ' + (started ? started.error : 'unknown'));
+                }
+
+                const result = await waitForResult();
+                logVadSegments(result.vadLogs || []);
+                const segments = result.segments || [];
+                renderSegments(segments);
+                setStatus('VAD Done');
+
+                const runId = transcriptionRunId;
+                await transcribeVadSegmentsSequentially(segments, runId, nthreads);
+            }
+
+            async function processFile(file) {
+                if (!file) {
+                    return;
+                }
+
+                const runId = ++transcriptionRunId;
+                await cancelActiveTranscription();
+                if (runId !== transcriptionRunId) {
+                    return;
+                }
+
+                segmentsEl.innerHTML = '';
+                setProgress('');
+                printTextarea('');
+                printTextarea('js: selected audio: ' + file.name + ', size: ' + file.size + ' bytes');
+
+                try {
+                    await loadAudio(file);
+                    if (runId !== transcriptionRunId) {
+                        return;
+                    }
+                    await transcribe();
+                } catch (error) {
+                    if (runId !== transcriptionRunId) {
+                        return;
+                    }
+                    setStatus('Error');
+                    printTextarea('js: error: ' + error.message);
+                }
+            }
+
+            dropzone.addEventListener('click', function() {
+                if (inputsLocked) {
+                    return;
+                }
+
+                fileInput.click();
+            });
+
+            dropzone.addEventListener('keydown', function(event) {
+                if (inputsLocked) {
+                    return;
+                }
+
+                if (event.key == 'Enter' || event.key == ' ') {
+                    event.preventDefault();
+                    fileInput.click();
+                }
+            });
+
+            fileInput.addEventListener('change', function(event) {
+                if (inputsLocked) {
+                    return;
+                }
+
+                processFile(event.target.files[0] || null);
+            });
+
+            dropzone.addEventListener('dragover', function(event) {
+                if (inputsLocked) {
+                    return;
+                }
+
+                event.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+
+            dropzone.addEventListener('dragleave', function() {
+                dropzone.classList.remove('dragover');
+            });
+
+            dropzone.addEventListener('drop', function(event) {
+                if (inputsLocked) {
+                    return;
+                }
+
+                event.preventDefault();
+                dropzone.classList.remove('dragover');
+                processFile(event.dataTransfer.files[0] || null);
+            });
+
+            audioEl.addEventListener('timeupdate', function() {
+                if (stopAt != null && audioEl.currentTime >= stopAt) {
+                    audioEl.pause();
+                    stopAt = null;
+                }
+            });
+        </script>
+        <script type="text/javascript" src="main.js"></script>
+    </body>
+</html>

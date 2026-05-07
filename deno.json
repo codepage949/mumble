@@ -1,0 +1,27 @@
+{
+  "tasks": {
+    "submodule:init": "git submodule update --init --recursive",
+    "test": "deno test --allow-read tests/*.test.js",
+    "check:scripts": "bash -n scripts/build-whisper-wasm-static.sh",
+    "check:cmake": "cmake -S . -B build-check -G Ninja",
+    "check": "deno task test && deno task check:scripts && deno task check:cmake",
+    "build": "./scripts/build-whisper-wasm-static.sh",
+    "start": "cd build-em/bin/whisper.wasm && deno run --allow-net --allow-read server.ts"
+  },
+  "fmt": {
+    "exclude": [
+      "external",
+      "build",
+      "build-*",
+      ".deps"
+    ]
+  },
+  "lint": {
+    "exclude": [
+      "external",
+      "build",
+      "build-*",
+      ".deps"
+    ]
+  }
+}
