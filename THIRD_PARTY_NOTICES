@@ -1,3 +1,9 @@
+Third-party notices
+===================
+
+This project uses whisper.cpp as a Git submodule at external/whisper.cpp.
+The following notice applies to whisper.cpp and its included ggml components.
+
 MIT License
 
 Copyright (c) 2023-2026 The ggml authors

@@ -21,6 +21,9 @@ docs/changes/              # 변경 기록
 현재 앱은 `tiny-q8_0` 모델과 Silero VAD 모델을 원격 URL에서 받아 브라우저 안에서
 실행합니다. 모델 바이너리는 배포 산출물에 포함하지 않습니다.
 
+`whisper.cpp`는 서브모듈 내부의 `external/whisper.cpp/LICENSE`를 따릅니다. 배포
+산출물에는 같은 고지를 담은 `THIRD_PARTY_NOTICES`를 포함합니다.
+
 ## 준비
 
 처음 받은 저장소라면 서브모듈을 초기화합니다.
